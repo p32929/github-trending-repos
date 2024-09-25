@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Button } from '@/components/ui/button';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 import { toast, Toaster } from 'sonner'; // Sonner toast for error notifications
 import { Skeleton } from '@/components/ui/skeleton';
@@ -19,8 +18,8 @@ interface Repo {
 const TrendingReposTable = () => {
   const [repos, setRepos] = useState<Repo[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [sortField, setSortField] = useState<keyof Repo>('language');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [sortField, setSortField] = useState<keyof Repo>('starsToday');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
   // Fetch data from the API
   useEffect(() => {
@@ -42,10 +41,19 @@ const TrendingReposTable = () => {
 
   // Sorting logic for the table
   const sortedRepos = [...repos].sort((a, b) => {
-    if (a[sortField] === null || b[sortField] === null) return 0; // Handle null values
-    if (a[sortField] < b[sortField]) return sortOrder === 'asc' ? -1 : 1;
-    if (a[sortField] > b[sortField]) return sortOrder === 'asc' ? 1 : -1;
-    return 0;
+    const aValue = a[sortField] ?? 0;
+    const bValue = b[sortField] ?? 0;
+
+    if (sortField === 'language' || sortField === 'repoUrl') {
+      // Alphabetical sorting
+      return sortOrder === 'asc'
+        ? String(aValue).localeCompare(String(bValue))
+        : String(bValue).localeCompare(String(aValue));
+    } else {
+      // Numerical sorting
+      // @ts-ignore
+      return sortOrder === 'asc' ? aValue - bValue : bValue - aValue;
+    }
   });
 
   // Toggle sorting order or change the sorting field
@@ -71,48 +79,38 @@ const TrendingReposTable = () => {
           ))}
         </div>
       ) : (
-        <Table className="text-center">
+        <Table className="text-left">
           <TableHeader>
             <TableRow>
-              <TableHead>
-                <Button variant="link" onClick={() => handleSort('language')}>
-                  Language {sortField === 'language' ? (sortOrder === 'asc' ? '↑' : '↓') : ''}
-                </Button>
+              <TableHead onClick={() => handleSort('language')} className="cursor-pointer">
+                Language {sortField === 'language' ? (sortOrder === 'asc' ? '↑' : '↓') : ''}
               </TableHead>
-              <TableHead>
-                <Button variant="link" onClick={() => handleSort('repoUrl')}>
-                  Repo URL {sortField === 'repoUrl' ? (sortOrder === 'asc' ? '↑' : '↓') : ''}
-                </Button>
+              <TableHead onClick={() => handleSort('repoUrl')} className="cursor-pointer">
+                Repo URL {sortField === 'repoUrl' ? (sortOrder === 'asc' ? '↑' : '↓') : ''}
               </TableHead>
-              <TableHead>
-                <Button variant="link" onClick={() => handleSort('stars')}>
-                  Stars {sortField === 'stars' ? (sortOrder === 'asc' ? '↑' : '↓') : ''}
-                </Button>
+              <TableHead onClick={() => handleSort('stars')} className="cursor-pointer">
+                Stars {sortField === 'stars' ? (sortOrder === 'asc' ? '↑' : '↓') : ''}
               </TableHead>
-              <TableHead>
-                <Button variant="link" onClick={() => handleSort('starsToday')}>
-                  Stars Today {sortField === 'starsToday' ? (sortOrder === 'asc' ? '↑' : '↓') : ''}
-                </Button>
+              <TableHead onClick={() => handleSort('starsToday')} className="cursor-pointer">
+                Stars Today {sortField === 'starsToday' ? (sortOrder === 'asc' ? '↑' : '↓') : ''}
               </TableHead>
-              <TableHead>
-                <Button variant="link" onClick={() => handleSort('forks')}>
-                  Forks {sortField === 'forks' ? (sortOrder === 'asc' ? '↑' : '↓') : ''}
-                </Button>
+              <TableHead onClick={() => handleSort('forks')} className="cursor-pointer">
+                Forks {sortField === 'forks' ? (sortOrder === 'asc' ? '↑' : '↓') : ''}
               </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {sortedRepos.map((repo, index) => (
               <TableRow key={index}>
-                <TableCell className="text-center">{repo.language}</TableCell>
-                <TableCell className="text-center">
+                <TableCell className="text-left">{repo.language}</TableCell>
+                <TableCell className="text-left">
                   <a href={repo.repoUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500">
                     {repo.repoUrl}
                   </a>
                 </TableCell>
-                <TableCell className="text-center">{repo.stars}</TableCell>
-                <TableCell className="text-center">{repo.starsToday ?? 'N/A'}</TableCell>
-                <TableCell className="text-center">{repo.forks ?? 'N/A'}</TableCell>
+                <TableCell className="text-left">{repo.stars}</TableCell>
+                <TableCell className="text-left">{repo.starsToday ?? 0}</TableCell>
+                <TableCell className="text-left">{repo.forks ?? 0}</TableCell>
               </TableRow>
             ))}
           </TableBody>

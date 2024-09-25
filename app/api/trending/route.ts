@@ -29,6 +29,10 @@ interface Repo {
     forks: number | null;
 }
 
+// Cache variables
+let cachedRepos: Repo[] = [];
+let lastFetchedDate: string | null = null;
+
 // Function to fetch and scrape trending repositories for a given language
 async function fetchTrendingRepos(language: string): Promise<Repo[]> {
     const url = `https://github.com/trending/${language}?since=daily`;
@@ -60,14 +64,15 @@ async function fetchTrendingRepos(language: string): Promise<Repo[]> {
             );
 
             // Updated selector for forks
-            const forks = parseInt(
-                repoElement
-                    .find('a:has(svg[aria-label="fork"])')
-                    .text()
-                    .trim()
-                    .replace(',', '') || '0', // Fallback to 0 if not found
-                10
-            ) || null; // Set to null if forks are not available
+            const forks =
+                parseInt(
+                    repoElement
+                        .find('a:has(svg[aria-label="fork"])')
+                        .text()
+                        .trim()
+                        .replace(',', '') || '0', // Fallback to 0 if not found
+                    10
+                ) || null; // Set to null if forks are not available
 
             // Extract stars today (may be null if not present)
             const starsTodayMatch = repoElement
@@ -92,17 +97,29 @@ async function fetchTrendingRepos(language: string): Promise<Repo[]> {
     }
 }
 
+// Helper function to get today's date as a string
+const getTodayDateString = () => new Date().toISOString().split('T')[0];
+
 export async function GET() {
+    const today = getTodayDateString();
+
+    // Check if the data has been fetched today already
+    if (lastFetchedDate === today && cachedRepos.length > 0) {
+        console.log('Returning cached data for today');
+        return NextResponse.json(cachedRepos);
+    }
+
     console.time('Total Fetch Time'); // Start timing
     try {
         // Fetch data concurrently for all languages
         const results = await Promise.all(languages.map(fetchTrendingRepos));
 
-        // Flatten the results and return the array of Repo objects
-        const repos: Repo[] = results.flat();
+        // Flatten the results and store in cache
+        cachedRepos = results.flat();
+        lastFetchedDate = today; // Update the cache date
 
         console.timeEnd('Total Fetch Time'); // End timing and log the duration
-        return NextResponse.json(repos);
+        return NextResponse.json(cachedRepos);
     } catch (error) {
         console.timeEnd('Total Fetch Time'); // End timing in case of error
         console.error('Error fetching trending repositories:', error);
