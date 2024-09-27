@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import axios from 'axios';
 import cheerio from 'cheerio';
 
-// List of programming languages to scrape
 const languages = [
     'dart',
     'go',
@@ -20,7 +19,6 @@ const languages = [
     'zig',
 ];
 
-// Define the Repo interface
 interface Repo {
     language: string;
     repoUrl: string;
@@ -29,11 +27,9 @@ interface Repo {
     forks: number | null;
 }
 
-// Cache variables
 let cachedRepos: Repo[] = [];
 let lastFetchedDate: string | null = null;
 
-// Function to fetch and scrape trending repositories for a given language
 async function fetchTrendingRepos(language: string): Promise<Repo[]> {
     const url = `https://github.com/trending/${language}?since=daily`;
 
@@ -63,18 +59,16 @@ async function fetchTrendingRepos(language: string): Promise<Repo[]> {
                 10
             );
 
-            // Updated selector for forks
             const forks =
                 parseInt(
                     repoElement
                         .find('a:has(svg[aria-label="fork"])')
                         .text()
                         .trim()
-                        .replace(',', '') || '0', // Fallback to 0 if not found
+                        .replace(',', '') || '0',
                     10
-                ) || null; // Set to null if forks are not available
+                ) || null;
 
-            // Extract stars today (may be null if not present)
             const starsTodayMatch = repoElement
                 .find('.f6.color-fg-muted.mt-2')
                 .text()
@@ -97,35 +91,29 @@ async function fetchTrendingRepos(language: string): Promise<Repo[]> {
     }
 }
 
-// Helper function to get today's date as a string
 const getTodayDateString = () => new Date().toISOString().split('T')[0];
 
-export async function GET() {
+export async function GET(request: Request) {
     const today = getTodayDateString();
+    const { searchParams } = new URL(request.url);
+    const forceFetch = searchParams.get('forceFetch') === 'true';
 
-    // Check if the data has been fetched today already
-    if (lastFetchedDate === today && cachedRepos.length > 0) {
+    if (!forceFetch && lastFetchedDate === today && cachedRepos.length > 0) {
         console.log('Returning cached data for today');
         return NextResponse.json(cachedRepos);
     }
 
-    console.time('Total Fetch Time'); // Start timing
+    console.time('Total Fetch Time');
     try {
-        // Fetch data concurrently for all languages
         const results = await Promise.all(languages.map(fetchTrendingRepos));
-
-        // Flatten the results and store in cache
         cachedRepos = results.flat();
-        lastFetchedDate = today; // Update the cache date
+        lastFetchedDate = today;
 
-        console.timeEnd('Total Fetch Time'); // End timing and log the duration
+        console.timeEnd('Total Fetch Time');
         return NextResponse.json(cachedRepos);
     } catch (error) {
-        console.timeEnd('Total Fetch Time'); // End timing in case of error
+        console.timeEnd('Total Fetch Time');
         console.error('Error fetching trending repositories:', error);
-        return NextResponse.json(
-            { error: 'Failed to fetch trending repositories.' },
-            { status: 500 }
-        );
+        return NextResponse.json({ error: 'Failed to fetch trending repositories.' }, { status: 500 });
     }
 }
