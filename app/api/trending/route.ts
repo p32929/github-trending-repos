@@ -3,19 +3,33 @@ import axios from 'axios';
 import cheerio from 'cheerio';
 
 const languages = [
+    'astro',
+    'c',
+    'c#',
+    'c++',
+    'clojure',
     'dart',
+    'gdscript',
     'go',
     'haskell',
+    'html',
     'java',
     'javascript',
+    'kotlin',
     'lua',
     'nim',
     'nix',
+    'ocaml',
+    'php',
+    'powershell',
     'python',
     'ruby',
     'rust',
+    'scala',
+    'svelte',
     'swift',
     'typescript',
+    'vue',
     'zig',
 ];
 
