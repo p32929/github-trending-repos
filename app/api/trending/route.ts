@@ -43,6 +43,8 @@ interface Repo {
 
 let cachedRepos: Repo[] = [];
 let lastFetchedDate: string | null = null;
+let isFetching = false; // Lock for fetch status
+let fetchPromise: Promise<Repo[]> | null = null; // Promise to hold the ongoing fetch
 
 async function fetchTrendingRepos(language: string): Promise<Repo[]> {
     const url = `https://github.com/trending/${language}?since=daily`;
@@ -112,22 +114,46 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const forceFetch = searchParams.get('forceFetch') === 'true';
 
+    // Return cached data if we already fetched today and no force fetch is required
     if (!forceFetch && lastFetchedDate === today && cachedRepos.length > 0) {
         console.log('Returning cached data for today');
         return NextResponse.json(cachedRepos);
     }
 
-    console.time('Total Fetch Time');
-    try {
-        const results = await Promise.all(languages.map(fetchTrendingRepos));
-        cachedRepos = results.flat();
-        lastFetchedDate = today;
-
-        console.timeEnd('Total Fetch Time');
+    // If a fetch is already in progress, wait for it to finish
+    if (isFetching && fetchPromise) {
+        console.log('Waiting for ongoing fetch to complete');
+        await fetchPromise;
         return NextResponse.json(cachedRepos);
-    } catch (error) {
-        console.timeEnd('Total Fetch Time');
-        console.error('Error fetching trending repositories:', error);
+    }
+
+    console.time('Total Fetch Time');
+
+    // Start fetching and set the lock
+    isFetching = true;
+    fetchPromise = Promise.all(languages.map(fetchTrendingRepos))
+        .then((results) => {
+            cachedRepos = results.flat();
+            lastFetchedDate = today;
+            console.timeEnd('Total Fetch Time');
+            return cachedRepos;
+        })
+        .catch((error) => {
+            console.error('Error fetching trending repositories:', error);
+            return [];
+        })
+        .finally(() => {
+            isFetching = false; // Release the lock
+            fetchPromise = null; // Reset the promise
+        });
+
+    // Wait for the fetch to finish and return the result
+    const finalRepos = await fetchPromise;
+
+    // If there was an error and no repositories were fetched
+    if (finalRepos.length === 0) {
         return NextResponse.json({ error: 'Failed to fetch trending repositories.' }, { status: 500 });
     }
+
+    return NextResponse.json(finalRepos);
 }
