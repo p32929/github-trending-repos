@@ -8,6 +8,7 @@ import { toast, Toaster } from 'sonner'; // Sonner toast for error notifications
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
+import { GithubIcon } from 'lucide-react';
 
 // Define the Repo interface matching the API response
 interface Repo {
@@ -98,11 +99,19 @@ const TrendingReposTable = () => {
             Github Trending Repos
           </h3>
 
-          <Button size={'sm'} variant={'secondary'} onClick={() => {
-            fetchRepos(true)
-          }}>
-            Force Fetch
-          </Button>
+          <div className='flex flex-row items-center space-x-2'>
+            <a href='https://github.com/p32929' target='_blank'>
+              <Button variant={'outline'} size={'sm'}>
+                <GithubIcon className='w-5 h-5 text-gray-200' />
+              </Button>
+            </a>
+
+            <Button size={'sm'} variant={'secondary'} onClick={() => {
+              fetchRepos(true)
+            }}>
+              Force Fetch
+            </Button>
+          </div>
         </div>
 
         <Separator orientation='horizontal' />
