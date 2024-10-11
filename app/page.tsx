@@ -98,12 +98,14 @@ const TrendingReposTable = () => {
             Github Trending Repos
           </h3>
 
-          <Button size={'sm'} variant={'secondary'}> 
+          <Button size={'sm'} variant={'secondary'} onClick={() => {
+            fetchRepos(true)
+          }}>
             Force Fetch
           </Button>
         </div>
 
-        <Separator orientation='horizontal'/>
+        <Separator orientation='horizontal' />
       </div>
 
       {loading ? (
