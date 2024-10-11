@@ -26,7 +26,7 @@ const TrendingReposTable = () => {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
   // Retry logic
-  const fetchWithRetry = async (url: string, retries = 2, delay = 1000): Promise<any> => {
+  const fetchWithRetry = async (url: string, retries = 5, delay = 10000): Promise<any> => {
     try {
       const response = await axios.get(url);
       return response.data;
