@@ -92,19 +92,18 @@ const TrendingReposTable = () => {
     <div className="">
       <Toaster position="top-right" /> {/* Sonner Toaster for toast notifications */}
 
-      <div className='flex flex-col pb-8'>
-        <div className='flex flex-row justify-between p-4'>
-          <h1 className="text-xl font-bold text-center">Trending Repositories</h1>
-          <Button variant={'secondary'} size={'sm'} onClick={() => fetchRepos(true)}>
-            Force Refresh
+      <div className='flex flex-col pb-4'>
+        <div className='flex flex-row p-4 justify-between items-center'>
+          <h3 className="text-2xl font-semibold tracking-tight">
+            Github Trending Repos
+          </h3>
+
+          <Button size={'sm'} variant={'secondary'}> 
+            Force Fetch
           </Button>
         </div>
 
-        {lastUpdated && (
-          <p className="text-sm text-gray-600 text-right">Last updated on: {lastUpdated}</p>
-        )}
-
-        <Separator className="" />
+        <Separator orientation='horizontal'/>
       </div>
 
       {loading ? (
