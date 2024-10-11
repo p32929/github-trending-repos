@@ -62,12 +62,15 @@ const TrendingReposTable = () => {
   // Toggle sorting order or change the sorting field
   const handleSort = (field: keyof Repo) => {
     if (sortField === field) {
+      // If sorting the same field, toggle between ascending and descending
       setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
     } else {
+      // If a new field is selected, start with descending order
       setSortField(field);
-      setSortOrder('asc');
+      setSortOrder('desc');
     }
   };
+
 
   return (
     <div className="">

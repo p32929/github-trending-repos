@@ -1,36 +1,16 @@
 import { NextResponse } from 'next/server';
 import axios from 'axios';
 import cheerio from 'cheerio';
+import { promises as fs } from 'fs';
+import path from 'path';
+
+const CACHE_FILE_PATH = path.join(process.cwd(), './.data/scraped_data.json');
 
 const languages = [
-    'astro',
-    'c',
-    'c#',
-    'c++',
-    'clojure',
-    'dart',
-    'gdscript',
-    'go',
-    'haskell',
-    'html',
-    'java',
-    'javascript',
-    'kotlin',
-    'lua',
-    'nim',
-    'nix',
-    'ocaml',
-    'php',
-    'powershell',
-    'python',
-    'ruby',
-    'rust',
-    'scala',
-    'svelte',
-    'swift',
-    'typescript',
-    'vue',
-    'zig',
+    'astro', 'c', 'c#', 'c++', 'clojure', 'dart', 'gdscript', 'go',
+    'haskell', 'html', 'java', 'javascript', 'kotlin', 'lua', 'nim',
+    'nix', 'ocaml', 'php', 'powershell', 'python', 'ruby', 'rust',
+    'scala', 'svelte', 'swift', 'typescript', 'vue', 'zig',
 ];
 
 interface Repo {
@@ -45,6 +25,24 @@ let cachedRepos: Repo[] = [];
 let lastFetchedDate: string | null = null;
 let isFetching = false; // Lock for fetch status
 let fetchPromise: Promise<Repo[]> | null = null; // Promise to hold the ongoing fetch
+
+// Function to save data to a file
+async function saveCacheToFile(repos: Repo[], date: string) {
+    const data = JSON.stringify({ repos, lastFetchedDate: date });
+    await fs.writeFile(CACHE_FILE_PATH, data, 'utf-8');
+}
+
+// Function to load cache from file
+async function loadCacheFromFile() {
+    try {
+        const data = await fs.readFile(CACHE_FILE_PATH, 'utf-8');
+        const parsedData = JSON.parse(data);
+        return parsedData;
+    } catch (error) {
+        console.error('Error reading cache file:', error);
+        return null;
+    }
+}
 
 async function fetchTrendingRepos(language: string): Promise<Repo[]> {
     const url = `https://github.com/trending/${language}?since=daily`;
@@ -114,6 +112,15 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const forceFetch = searchParams.get('forceFetch') === 'true';
 
+    // Attempt to load cached data from file if no forceFetch is requested
+    if (!forceFetch && !lastFetchedDate) {
+        const cachedData = await loadCacheFromFile();
+        if (cachedData) {
+            cachedRepos = cachedData.repos;
+            lastFetchedDate = cachedData.lastFetchedDate;
+        }
+    }
+
     // Return cached data if we already fetched today and no force fetch is required
     if (!forceFetch && lastFetchedDate === today && cachedRepos.length > 0) {
         console.log('Returning cached data for today');
@@ -135,8 +142,12 @@ export async function GET(request: Request) {
         .then((results) => {
             cachedRepos = results.flat();
             lastFetchedDate = today;
-            console.timeEnd('Total Fetch Time');
             return cachedRepos;
+        })
+        .then(async (repos) => {
+            await saveCacheToFile(repos, today); // Save fetched data to file
+            console.timeEnd('Total Fetch Time');
+            return repos;
         })
         .catch((error) => {
             console.error('Error fetching trending repositories:', error);
