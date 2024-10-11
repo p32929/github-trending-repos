@@ -24,12 +24,27 @@ const TrendingReposTable = () => {
   const [sortField, setSortField] = useState<keyof Repo>('starsToday');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
+  // Retry logic
+  const fetchWithRetry = async (url: string, retries = 2, delay = 1000): Promise<any> => {
+    try {
+      const response = await axios.get(url);
+      return response.data;
+    } catch (error) {
+      if (retries > 0) {
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        return fetchWithRetry(url, retries - 1, delay);
+      } else {
+        throw error;
+      }
+    }
+  };
+
   // Fetch data from the API
   const fetchRepos = async (forceFetch = false) => {
     setLoading(true);
     try {
-      const response = await axios.get(`/api/trending?forceFetch=${forceFetch}`);
-      setRepos(response.data);
+      const data = await fetchWithRetry(`/api/trending?forceFetch=${forceFetch}`);
+      setRepos(data);
     } catch (error) {
       console.error('Failed to fetch trending repositories:', error);
       toast.error('Failed to load trending repositories');
@@ -71,17 +86,9 @@ const TrendingReposTable = () => {
     }
   };
 
-
   return (
     <div className="">
       <Toaster position="top-right" /> {/* Sonner Toaster for toast notifications */}
-      {/* <h1 className="text-xl font-bold mb-4 text-center">Trending Repositories</h1>
-      <button
-        onClick={() => fetchRepos(true)}
-        className="mb-4 p-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-      >
-        Refresh Data
-      </button> */}
 
       <div className='flex flex-col pb-8'>
         <div className='flex flex-row justify-between p-4'>
