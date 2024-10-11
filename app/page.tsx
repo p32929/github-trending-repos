@@ -26,17 +26,19 @@ const TrendingReposTable = () => {
   const [sortField, setSortField] = useState<keyof Repo>('starsToday');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
-  // Retry logic
+  // Retry logic using for loop
   const fetchWithRetry = async (url: string, retries = 5, delay = 10000): Promise<any> => {
-    try {
-      const response = await axios.get(url);
-      return response.data;
-    } catch (error) {
-      if (retries > 0) {
-        await new Promise((resolve) => setTimeout(resolve, delay));
-        return fetchWithRetry(url, retries - 1, delay);
-      } else {
-        throw error;
+    for (let i = 0; i <= retries; i++) {
+      try {
+        const response = await axios.get(url);
+        return response.data;
+      } catch (error) {
+        if (i < retries) {
+          console.log(`Retrying... attempt ${i + 1}`);
+          await new Promise((resolve) => setTimeout(resolve, delay));
+        } else {
+          throw error; // Throw error after all retries are exhausted
+        }
       }
     }
   };
