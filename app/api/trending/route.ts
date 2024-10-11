@@ -124,14 +124,14 @@ export async function GET(request: Request) {
     // Return cached data if we already fetched today and no force fetch is required
     if (!forceFetch && lastFetchedDate === today && cachedRepos.length > 0) {
         console.log('Returning cached data for today');
-        return NextResponse.json(cachedRepos);
+        return NextResponse.json({ repos: cachedRepos, lastFetchedDate });
     }
 
     // If a fetch is already in progress, wait for it to finish
     if (isFetching && fetchPromise) {
         console.log('Waiting for ongoing fetch to complete');
         await fetchPromise;
-        return NextResponse.json(cachedRepos);
+        return NextResponse.json({ repos: cachedRepos, lastFetchedDate });
     }
 
     console.time('Total Fetch Time');
@@ -166,5 +166,6 @@ export async function GET(request: Request) {
         return NextResponse.json({ error: 'Failed to fetch trending repositories.' }, { status: 500 });
     }
 
-    return NextResponse.json(finalRepos);
+    // Return the final repositories along with the last fetched date
+    return NextResponse.json({ repos: finalRepos, lastFetchedDate });
 }

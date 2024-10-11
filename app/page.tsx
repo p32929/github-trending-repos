@@ -20,6 +20,7 @@ interface Repo {
 
 const TrendingReposTable = () => {
   const [repos, setRepos] = useState<Repo[]>([]);
+  const [lastUpdated, setLastUpdated] = useState<string | null>(null); // State for last updated date
   const [loading, setLoading] = useState<boolean>(true);
   const [sortField, setSortField] = useState<keyof Repo>('starsToday');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
@@ -43,8 +44,9 @@ const TrendingReposTable = () => {
   const fetchRepos = async (forceFetch = false) => {
     setLoading(true);
     try {
-      const data = await fetchWithRetry(`/api/trending?forceFetch=${forceFetch}`);
-      setRepos(data);
+      const { repos, lastFetchedDate } = await fetchWithRetry(`/api/trending?forceFetch=${forceFetch}`);
+      setRepos(repos);
+      setLastUpdated(lastFetchedDate); // Set the last updated date
     } catch (error) {
       console.error('Failed to fetch trending repositories:', error);
       toast.error('Failed to load trending repositories');
@@ -97,6 +99,10 @@ const TrendingReposTable = () => {
             Force Refresh
           </Button>
         </div>
+
+        {lastUpdated && (
+          <p className="text-sm text-gray-600 text-right">Last updated on: {lastUpdated}</p>
+        )}
 
         <Separator className="" />
       </div>
