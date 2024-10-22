@@ -97,9 +97,11 @@ const TrendingReposTable = () => {
 
       <div className='flex flex-col pb-4'>
         <div className='flex flex-row p-4 justify-between items-center'>
-          <h3 className="text-2xl font-semibold tracking-tight">
+          <h3 className="text-xl font-semibold tracking-tight">
             Github Trending Repos
           </h3>
+
+          <p className='text-xs font-bold italic'>*{lastUpdated}*</p>
 
           <div className='flex flex-row items-center space-x-2'>
             <a href='https://github.com/p32929' target='_blank'>
