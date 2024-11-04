@@ -23,7 +23,7 @@ interface Repo {
 
 const TrendingReposTable = () => {
   const [repos, setRepos] = useState<Repo[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState<boolean>(false);
   const [sortField, setSortField] = useState<keyof Repo>('starsToday');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [progressMessage, setProgressMessage] = useState<string>('');
@@ -33,22 +33,24 @@ const TrendingReposTable = () => {
     fetchRepos();
   }, []);
 
-  const fetchRepos = async () => {
+  const fetchRepos = async (forceFetch = false) => {
     setLoading(true);
+    setRepos([]); // Clear existing repos
     const sessionId = uuidv4();
 
     const socket = io('/', { query: { sessionId } });
 
     socket.on('connect', () => {
       console.log('Connected to Socket.IO server');
-      axios.get(`/api/trending?sessionId=${sessionId}`)
+      axios.get(`/api/trending?sessionId=${sessionId}&forceFetch=${forceFetch}`)
         .then(response => {
-          console.log('Scraping started');
+          console.log('Scraping started or data returned from cache');
         })
         .catch(error => {
           console.error('Failed to start scraping:', error);
           toast.error('Failed to start scraping');
           setLoading(false);
+          socket.disconnect();
         });
     });
 
@@ -82,11 +84,27 @@ const TrendingReposTable = () => {
           [language]: 'failed',
         }));
       }
+
+      if (data.message === 'Loaded data from cache') {
+        setProgressMessage('Loaded data from cache');
+      }
     });
 
     socket.on('languageData', (data) => {
       console.log('Received data for language:', data.language);
       setRepos(prevRepos => [...prevRepos, ...data.repos]);
+    });
+
+    socket.on('reposUpdate', (data) => {
+      // Update the list live
+      setRepos(data.repos);
+    });
+
+    socket.on('cachedData', (data) => {
+      console.log('Received cached data');
+      setRepos(data.repos);
+      setLoading(false);
+      socket.disconnect();
     });
 
     socket.on('completed', (data) => {
@@ -146,8 +164,9 @@ const TrendingReposTable = () => {
               </Button>
             </a>
             <Button size={'sm'} variant={'secondary'} onClick={() => {
-              setRepos([]);
-              fetchRepos();
+              setProgress({});
+              setProgressMessage('');
+              fetchRepos(true);
             }}>
               Force Fetch
             </Button>
@@ -157,22 +176,33 @@ const TrendingReposTable = () => {
       </div>
       {loading ? (
         <div>
-          <p>{progressMessage}</p>
-          <ul>
-            {Object.keys(progress).map(language => (
-              <li key={language}>
-                {language}: {progress[language]}
-              </li>
-            ))}
-          </ul>
+          {/* Show progress updates */}
+          <div className="mb-4">
+            <p className="font-semibold">Progress:</p>
+            <p>{progressMessage}</p>
+            <div className="mt-2">
+              {Object.keys(progress).map(language => (
+                <div key={language} className="flex items-center">
+                  <span>{language}:</span>
+                  <span className={`ml-2 ${progress[language] === 'success' ? 'text-green-600' : progress[language] === 'failed' ? 'text-red-600' : 'text-yellow-600'}`}>
+                    {progress[language]}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+          {/* Show skeleton */}
           <div className="space-y-4">
             {[...Array(5)].map((_, index) => (
               <Skeleton key={index} className="h-12 w-full" />
             ))}
           </div>
         </div>
-      ) : (
-        <Table className="text-left">
+      ) : null}
+
+      {/* Show the table even if loading, so that data can update live */}
+      {repos.length > 0 && (
+        <Table className="text-left mt-4">
           <TableHeader>
             <TableRow>
               <TableHead onClick={() => handleSort('language')} className="cursor-pointer">
