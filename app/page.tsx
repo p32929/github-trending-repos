@@ -9,10 +9,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import { GithubIcon } from 'lucide-react';
+import { io, Socket } from 'socket.io-client'; // Import Socket type
 
-import { io } from 'socket.io-client';
-import { v4 as uuidv4 } from 'uuid';
-
+// Define the Repo interface matching the API response
 interface Repo {
   language: string;
   repoUrl: string;
@@ -21,6 +20,13 @@ interface Repo {
   forks: number | null;
 }
 
+const languages = [
+  'astro', 'c', 'c#', 'c++', 'clojure', 'dart', 'gdscript', 'go',
+  'haskell', 'html', 'java', 'javascript', 'kotlin', 'lua', 'nim',
+  'nix', 'ocaml', 'php', 'powershell', 'python', 'ruby', 'rust',
+  'scala', 'svelte', 'swift', 'typescript', 'vue', 'zig',
+];
+
 const TrendingReposTable = () => {
   const [repos, setRepos] = useState<Repo[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
@@ -28,30 +34,16 @@ const TrendingReposTable = () => {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [progressMessage, setProgressMessage] = useState<string>('');
   const [progress, setProgress] = useState<{ [language: string]: 'pending' | 'success' | 'failed' }>({});
+  const [totalLanguages] = useState<number>(languages.length);
+  const [completedLanguages, setCompletedLanguages] = useState<number>(0);
 
   useEffect(() => {
-    fetchRepos();
-  }, []);
+    // Create socket connection on component mount
+    const socket: Socket = io('/');
 
-  const fetchRepos = async (forceFetch = false) => {
-    setLoading(true);
-    setRepos([]); // Clear existing repos
-    const sessionId = uuidv4();
-
-    const socket = io('/', { query: { sessionId } });
-
+    // Set up socket event handlers
     socket.on('connect', () => {
       console.log('Connected to Socket.IO server');
-      axios.get(`/api/trending?sessionId=${sessionId}&forceFetch=${forceFetch}`)
-        .then(response => {
-          console.log('Scraping started or data returned from cache');
-        })
-        .catch(error => {
-          console.error('Failed to start scraping:', error);
-          toast.error('Failed to start scraping');
-          setLoading(false);
-          socket.disconnect();
-        });
     });
 
     socket.on('progress', (data) => {
@@ -74,6 +66,7 @@ const TrendingReposTable = () => {
           ...prevProgress,
           [language]: 'success',
         }));
+        setCompletedLanguages(prev => prev + 1);
       }
 
       const failMatch = data.message.match(/Failed to fetch (.+)/);
@@ -83,6 +76,7 @@ const TrendingReposTable = () => {
           ...prevProgress,
           [language]: 'failed',
         }));
+        setCompletedLanguages(prev => prev + 1);
       }
 
       if (data.message === 'Loaded data from cache') {
@@ -124,6 +118,33 @@ const TrendingReposTable = () => {
     socket.on('disconnect', () => {
       console.log('Disconnected from Socket.IO server');
     });
+
+    // Clean up on unmount
+    return () => {
+      socket.disconnect();
+    };
+  }, []);
+
+  useEffect(() => {
+    fetchRepos();
+  }, []);
+
+  const fetchRepos = async (forceFetch = false) => {
+    setLoading(true);
+    setRepos([]); // Clear existing repos
+    setProgress({});
+    setProgressMessage('');
+    setCompletedLanguages(0);
+
+    axios.get(`/api/trending?forceFetch=${forceFetch}`)
+      .then(response => {
+        console.log('Scraping started or data returned from cache');
+      })
+      .catch(error => {
+        console.error('Failed to start scraping:', error);
+        toast.error('Failed to start scraping');
+        setLoading(false);
+      });
   };
 
   const sortedRepos = [...repos].sort((a, b) => {
@@ -149,6 +170,20 @@ const TrendingReposTable = () => {
     }
   };
 
+  // Helper function to get status color
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'success':
+        return 'bg-green-500';
+      case 'failed':
+        return 'bg-red-500';
+      case 'pending':
+        return 'bg-yellow-500';
+      default:
+        return 'bg-gray-300';
+    }
+  };
+
   return (
     <div className="">
       <Toaster position="top-right" />
@@ -164,8 +199,6 @@ const TrendingReposTable = () => {
               </Button>
             </a>
             <Button size={'sm'} variant={'secondary'} onClick={() => {
-              setProgress({});
-              setProgressMessage('');
               fetchRepos(true);
             }}>
               Force Fetch
@@ -174,33 +207,39 @@ const TrendingReposTable = () => {
         </div>
         <Separator orientation='horizontal' />
       </div>
-      {loading ? (
-        <div>
-          {/* Show progress updates */}
-          <div className="mb-4">
-            <p className="font-semibold">Progress:</p>
-            <p>{progressMessage}</p>
-            <div className="mt-2">
-              {Object.keys(progress).map(language => (
-                <div key={language} className="flex items-center">
-                  <span>{language}:</span>
-                  <span className={`ml-2 ${progress[language] === 'success' ? 'text-green-600' : progress[language] === 'failed' ? 'text-red-600' : 'text-yellow-600'}`}>
-                    {progress[language]}
-                  </span>
-                </div>
-              ))}
-            </div>
+
+      {/* Show progress bar and messages */}
+      {loading && (
+        <div className="mb-4 px-4">
+          <p className="font-semibold mb-2">Progress:</p>
+          <div className="w-full bg-gray-200 rounded-full h-4 mb-4">
+            <div
+              className="bg-blue-600 h-4 rounded-full"
+              style={{ width: `${(completedLanguages / totalLanguages) * 100}%` }}
+            ></div>
           </div>
-          {/* Show skeleton */}
-          <div className="space-y-4">
-            {[...Array(5)].map((_, index) => (
-              <Skeleton key={index} className="h-12 w-full" />
+          <p className="text-sm mb-2">{progressMessage}</p>
+          <div className="flex flex-wrap gap-2">
+            {languages.map(language => (
+              <div key={language} className="flex items-center space-x-1">
+                <span className={`w-3 h-3 rounded-full ${getStatusColor(progress[language])}`}></span>
+                <span className="text-sm">{language}</span>
+              </div>
             ))}
           </div>
         </div>
-      ) : null}
+      )}
 
-      {/* Show the table even if loading, so that data can update live */}
+      {/* Show skeleton only when loading and no repos yet */}
+      {loading && repos.length === 0 && (
+        <div className="space-y-4 px-4">
+          {[...Array(5)].map((_, index) => (
+            <Skeleton key={index} className="h-12 w-full" />
+          ))}
+        </div>
+      )}
+
+      {/* Show the table */}
       {repos.length > 0 && (
         <Table className="text-left mt-4">
           <TableHeader>
