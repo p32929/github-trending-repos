@@ -21,8 +21,8 @@ interface Repo {
 }
 
 const languages = [
-  'astro', 'c', 'c#', 'c++', 'clojure', 'dart', 'gdscript', 'go',
-  'haskell', 'html', 'java', 'javascript', 'kotlin', 'lua', 'nim',
+  'astro', 'c', 'c#', 'c++', 'clojure', 'dart', 'dockerfile', 'elixir', 'gdscript', 'go',
+  'haskell', 'html', 'java', 'julia', 'javascript', 'kotlin', 'lua', 'nim',
   'nix', 'ocaml', 'php', 'powershell', 'python', 'ruby', 'rust',
   'scala', 'svelte', 'swift', 'typescript', 'vue', 'zig',
 ];
