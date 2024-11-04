@@ -23,7 +23,9 @@ const CACHE_FILE_PATH = './.data/scraped_data.json';
 app.prepare().then(() => {
     const server = express();
     const httpServer = http.createServer(server);
-    const io = socketIo(httpServer);
+    const io = require('socket.io')(httpServer, {
+        transports: ['polling'], // Use polling as a fallback
+    });
 
     io.on('connection', (socket) => {
         console.log('Client connected with socket id:', socket.id);
