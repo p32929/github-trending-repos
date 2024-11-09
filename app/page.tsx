@@ -129,14 +129,14 @@ const TrendingReposTable = () => {
     fetchRepos();
   }, []);
 
-  const fetchRepos = async (forceFetch = false) => {
+  const fetchRepos = async () => {
     setLoading(true);
     setRepos([]); // Clear existing repos
     setProgress({});
     setProgressMessage('');
     setCompletedLanguages(0);
 
-    axios.get(`/api/trending?forceFetch=${forceFetch}`)
+    axios.get(`/api/trending`)
       .then(response => {
         console.log('Scraping started or data returned from cache');
       })
@@ -198,11 +198,6 @@ const TrendingReposTable = () => {
                 <GithubIcon className='w-5 h-5 text-gray-200' />
               </Button>
             </a>
-            <Button size={'sm'} variant={'secondary'} onClick={() => {
-              fetchRepos(true);
-            }}>
-              Force Fetch
-            </Button>
           </div>
         </div>
         <Separator orientation='horizontal' />
