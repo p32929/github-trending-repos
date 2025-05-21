@@ -10,11 +10,16 @@ const app = next({ dev });
 const handle = app.getRequestHandler();
 
 const languages = [
-    'astro', 'c', 'c#', 'c++', 'clojure', 'dart', 'gdscript', 'go',
+    '', 'astro', 'c', 'c#', 'c++', 'clojure', 'dart', 'elixir', 'gdscript', 'go',
     'haskell', 'html', 'java', 'javascript', 'kotlin', 'lua', 'nim',
     'nix', 'ocaml', 'php', 'powershell', 'python', 'ruby', 'rust',
     'scala', 'svelte', 'swift', 'typescript', 'vue', 'zig',
 ];
+
+// Cache for storing fetched repositories
+let cachedRepos = [];
+let lastUpdated = null;
+let isCurrentlyFetching = false;
 
 app.prepare().then(() => {
     // Initialize the Express server
@@ -27,6 +32,14 @@ app.prepare().then(() => {
     io.on('connection', (socket) => {
         console.log('Client connected with socket id:', socket.id);
 
+        // Send cached data if available
+        if (cachedRepos.length > 0) {
+            socket.emit('cachedData', { 
+                repos: cachedRepos, 
+                lastUpdated: lastUpdated 
+            });
+        }
+
         // Handle disconnection
         socket.on('disconnect', () => {
             console.log(`Client disconnected: ${socket.id}`);
@@ -35,8 +48,46 @@ app.prepare().then(() => {
 
     // Route for /api/trending with concurrent data fetching and no file-saving
     server.get('/api/trending', async (req, res) => {
+        // Force refresh parameter
+        const forceRefresh = req.query.forceRefresh === 'true';
+        
+        // Check if we have cached data and it's from today (unless force refresh is requested)
+        const today = new Date().toDateString();
+        const cacheIsValid = cachedRepos.length > 0 && 
+                             lastUpdated && 
+                             new Date(lastUpdated).toDateString() === today &&
+                             !forceRefresh;
+
+        // If we have valid cached data, return it immediately
+        if (cacheIsValid) {
+            res.json({ 
+                message: 'Using cached data', 
+                status: 'cached',
+                lastUpdated: lastUpdated
+            });
+            return;
+        }
+
+        // If already fetching, inform client to wait
+        if (isCurrentlyFetching) {
+            res.json({ 
+                message: 'Data fetching in progress', 
+                status: 'in-progress' 
+            });
+            return;
+        }
+
+        // Start new fetch
+        isCurrentlyFetching = true;
+        
+        // Clear previous cache if we're starting a new fetch
+        cachedRepos = [];
+        
         // Send immediate response to client
-        res.json({ message: 'Scraping started' });
+        res.json({ 
+            message: 'Scraping started', 
+            status: 'started' 
+        });
 
         try {
             console.log('Starting concurrent fetching for all languages');
@@ -60,14 +111,25 @@ app.prepare().then(() => {
             const allReposArray = await Promise.all(fetchPromises);
             const allRepos = allReposArray.flat();
 
+            // Deduplicate repositories by URL before caching
+            const uniqueRepos = allRepos.filter((repo, index, self) => 
+                index === self.findIndex((r) => r.repoUrl === repo.repoUrl)
+            );
+
+            // Update cache
+            cachedRepos = uniqueRepos;
+            lastUpdated = new Date().toISOString();
+
             // Emit completion event
             console.log('Scraping completed');
-            io.emit('reposUpdate', { repos: allRepos });
-            io.emit('completed', { message: 'Scraping completed' });
+            io.emit('reposUpdate', { repos: uniqueRepos, lastUpdated: lastUpdated });
+            io.emit('completed', { message: 'Scraping completed', lastUpdated: lastUpdated });
 
         } catch (error) {
             console.error('Error during scraping:', error);
             io.emit('error', { message: 'Error during scraping', error });
+        } finally {
+            isCurrentlyFetching = false;
         }
     });
 
@@ -85,7 +147,11 @@ app.prepare().then(() => {
 
 // The fetchTrendingRepos function
 async function fetchTrendingRepos(language) {
-    const url = `https://github.com/trending/${language}?since=daily`;
+    let url = `https://github.com/trending/${language}?since=daily`;
+    if (language === '') {
+        url = `https://github.com/trending/`;
+    }
+    
 
     try {
         const { data: html } = await axios.get(url, {
