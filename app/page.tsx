@@ -201,7 +201,7 @@ const TrendingReposTable = () => {
               <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
               Refresh
             </Button>
-            <a href='https://github.com/p32929' target='_blank'>
+            <a href='https://github.com/p32929/github-trending-repos' target='_blank'>
               <Button 
                 variant="outline" 
                 size="sm"
